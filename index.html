@@ -137,6 +137,17 @@
             margin-top: 10px;
             display: inline-block;
         }
+
+        input {
+            width: 80%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 10px;
+            border: 1px solid var(--cyan);
+            background: #000;
+            color: white;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -160,14 +171,16 @@
             <h3>Presale Portál</h3>
             <span class="stats-label">Elérhető készlet:</span>
             <span class="stats-value">40,000,000 TLX</span>
-            <button class="btn" style="background: var(--cyan); color: #000; width: 100%;">Vásárlás tBNB-vel</button>
+            <input type="number" id="buyAmount" placeholder="tBNB mennyiség" step="0.01">
+            <button class="btn" id="buyBtn" style="background: var(--cyan); color: #000; width: 100%;">Vásárlás tBNB-vel</button>
         </div>
 
         <div class="card">
             <h3>Staking Pool</h3>
             <span class="stats-label">Jutalom keret:</span>
             <span class="stats-value">20,000,000 TLX</span>
-            <button class="btn" style="background: var(--magenta); color: #fff; width: 100%;">Token Lekötése</button>
+            <input type="number" id="stakeAmount" placeholder="TLX mennyiség">
+            <button class="btn" id="stakeBtn" style="background: var(--magenta); color: #fff; width: 100%;">Token Lekötése</button>
         </div>
     </div>
 
@@ -183,7 +196,8 @@
         <div id="unlockedArea" class="unlocked-content">
             <h3 style="color: var(--cyan);">✨ Hozzáférés Engedélyezve!</h3>
             <div style="background: #222; padding: 50px; border-radius: 15px; border: 2px solid var(--cyan);">
-                <p>[ Itt jelenik meg a 7. Epizód interaktív olvasója ]</p>
+                <p><b>Gratulálunk, Fényőr!</b> Sikeresen azonosítottad magad.</p>
+                <img src="1441.jpg" alt="TetraLux Kódex" style="max-width: 100%; border-radius: 15px; margin: 20px 0; border: 1px solid var(--gold);">
                 <p><i>TetraLux éppen a Revolut kártyájával fizet a Ramen étteremben...</i></p>
                 <button class="btn" style="border: 1px solid var(--gold); color: var(--gold); background: transparent;">Képregény letöltése (PDF)</button>
             </div>
@@ -192,68 +206,96 @@
 </div>
 
 <script>
+    // Konfiguráció
     const tlxAddress = "0xBD2911a2899407b85BF33F013Df1d0f3b049D473";
+    const presaleWallet = "0xbb64336e367d42977dc8bcf0364f80801bc5eb5b";
+    const stakingWallet = "0x2c8bbc67fc5ff886223c1bb576e720853e6da372";
+
     const tlxAbi = [
         {"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-        {"inputs":[],"name":"decimals","outputs":[{"internalType":"uint8","name":"","type":"uint8"}],"stateMutability":"view","type":"function"}
+        {"inputs":[],"name":"decimals","outputs":[{"internalType":"uint8","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},
+        {"inputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"value","type":"uint256"}],"name":"transfer","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"}
     ];
 
-    const connectButton = document.getElementById('connectButton');
-    const statusText = document.getElementById('statusText');
-    const subStatus = document.getElementById('subStatus');
-    const lockedArea = document.getElementById('lockedArea');
-    const unlockedArea = document.getElementById('unlockedArea');
+    let provider, signer, account;
 
-    async function updateUI() {
-        // 1. Ethers ellenőrzése
-        if (typeof ethers === 'undefined') {
-            alert("Hiba: A blokklánc könyvtár nem töltődött be. Ellenőrizd az internetkapcsolatot!");
-            return;
-        }
-
-        // 2. MetaMask ellenőrzése
+    async function init() {
         if (typeof window.ethereum !== 'undefined') {
-            try {
-                subStatus.innerText = "Kapcsolódás a MetaMask-hoz...";
-                
-                // Account kérése
-                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                const account = accounts[0];
-                
-                // Gomb szöveg frissítése
-                connectButton.innerText = account.slice(0,6) + "..." + account.slice(-4);
-                
-                // Blokklánc hívás
-                const provider = new ethers.providers.Web3Provider(window.ethereum);
-                const contract = new ethers.Contract(tlxAddress, tlxAbi, provider);
-                
-                const balance = await contract.balanceOf(account);
-                const decimals = await contract.decimals();
-                const formattedBalance = parseFloat(ethers.utils.formatUnits(balance, decimals));
-                
-                console.log("Felhasználó egyenlege:", formattedBalance);
-
-                if (formattedBalance >= 10000) {
-                    lockedArea.style.display = 'none';
-                    unlockedArea.style.display = 'block';
-                } else {
-                    statusText.innerText = "❌ Nincs elég tokened";
-                    subStatus.innerText = "Egyenleged: " + formattedBalance.toLocaleString() + " TLX (Szükséges: 10,000)";
-                    alert("A tartalom zárolva marad, amíg nincs legalább 10,000 TLX a tárcádban.");
-                }
-
-            } catch (error) {
-                console.error("Hiba történt:", error);
-                statusText.innerText = "⚠️ Hiba";
-                subStatus.innerText = "A tranzakciót elutasították vagy hiba történt.";
+            provider = new ethers.providers.Web3Provider(window.ethereum);
+            const accounts = await provider.listAccounts();
+            if (accounts.length > 0) {
+                setupAccount(accounts[0]);
             }
-        } else {
-            alert("MetaMask nem található! Kérlek telepítsd a bővítményt vagy használd a MetaMask beépített böngészőjét.");
         }
     }
 
-    // Eseménykezelő hozzárendelése
-    connectButton.addEventListener('click', updateUI);
+    async function setupAccount(acc) {
+        account = acc;
+        signer = provider.getSigner();
+        document.getElementById('connectButton').innerText = account.slice(0,6) + "..." + account.slice(-4);
+        checkAccess();
+    }
+
+    async function checkAccess() {
+        const contract = new ethers.Contract(tlxAddress, tlxAbi, provider);
+        const balance = await contract.balanceOf(account);
+        const decimals = await contract.decimals();
+        const formattedBalance = parseFloat(ethers.utils.formatUnits(balance, decimals));
+
+        if (formattedBalance >= 10000) {
+            document.getElementById('lockedArea').style.display = 'none';
+            document.getElementById('unlockedArea').style.display = 'block';
+        } else {
+            document.getElementById('statusText').innerText = "❌ Nincs elég tokened (" + formattedBalance.toLocaleString() + " TLX)";
+        }
+    }
+
+    // Connect Wallet
+    document.getElementById('connectButton').onclick = async () => {
+        const accounts = await provider.send("eth_requestAccounts", []);
+        setupAccount(accounts[0]);
+    };
+
+    // BUY (Presale) Funkció
+    document.getElementById('buyBtn').onclick = async () => {
+        if (!signer) return alert("Csatlakoztasd a tárcád!");
+        const amount = document.getElementById('buyAmount').value;
+        if (!amount || amount <= 0) return alert("Adj meg egy érvényes összeget!");
+
+        try {
+            const tx = await signer.sendTransaction({
+                to: presaleWallet,
+                value: ethers.utils.parseEther(amount)
+            });
+            alert("Tranzakció elküldve! Hash: " + tx.hash);
+            await tx.wait();
+            alert("Vásárlás sikeres! A tokenek hamarosan érkeznek.");
+        } catch (err) {
+            console.error(err);
+            alert("Hiba történt a vásárlás során.");
+        }
+    };
+
+    // STAKE Funkció
+    document.getElementById('stakeBtn').onclick = async () => {
+        if (!signer) return alert("Csatlakoztasd a tárcád!");
+        const amount = document.getElementById('stakeAmount').value;
+        if (!amount || amount <= 0) return alert("Mennyit szeretnél lekötni?");
+
+        try {
+            const contract = new ethers.Contract(tlxAddress, tlxAbi, signer);
+            const decimals = await contract.decimals();
+            const tx = await contract.transfer(stakingWallet, ethers.utils.parseUnits(amount, decimals));
+            alert("Staking tranzakció elküldve!");
+            await tx.wait();
+            alert("Sikeres lekötés!");
+        } catch (err) {
+            console.error(err);
+            alert("Hiba a staking során.");
+        }
+    };
+
+    window.onload = init;
 </script>
 
 </body>
