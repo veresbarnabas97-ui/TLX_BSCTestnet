@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TetraLux | BSC Testnet DApp & Comics</title>
-    <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js" type="text/javascript"></script>
     <style>
         :root {
             --cyan: #00f2ff;
@@ -20,6 +20,7 @@
             font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             margin: 0;
             line-height: 1.6;
+            text-align: center;
         }
 
         nav {
@@ -66,13 +67,12 @@
 
         .hero {
             padding: 100px 5%;
-            text-align: center;
             background: radial-gradient(circle at center, #1a1a2e 0%, #050507 100%);
         }
 
         .hero h1 {
             font-size: 3.5rem;
-            margin-bottom: 20px;
+            margin: 0 0 20px 0;
             background: linear-gradient(to right, #fff, var(--cyan));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -95,25 +95,21 @@
             padding: 30px;
             border-radius: 20px;
             border: 1px solid rgba(255, 255, 255, 0.1);
-            text-align: center;
             transition: 0.3s;
         }
 
         .card:hover {
             border-color: var(--cyan);
-            background: rgba(0, 242, 255, 0.03);
         }
 
         .stats-label { color: var(--gold); font-size: 0.9rem; margin-top: 10px; display: block; }
         .stats-value { font-size: 1.5rem; font-weight: bold; display: block; margin-bottom: 15px; }
 
-        /* Képregény szekció */
         #comic-section {
             margin-top: 60px;
             padding: 50px;
             border-radius: 30px;
             background: rgba(255, 255, 255, 0.02);
-            text-align: center;
         }
 
         .locked-overlay {
@@ -139,6 +135,7 @@
             color: var(--cyan);
             word-break: break-all;
             margin-top: 10px;
+            display: inline-block;
         }
     </style>
 </head>
@@ -152,7 +149,7 @@
 <section class="hero">
     <h1>7. Epizód: A Fény Gazdasága</h1>
     <p>Üdvözlünk a TetraLux BSC Testnet ökoszisztémájában. Használd a tokened a Kódex feloldásához!</p>
-    <div class="contract-box" style="max-width: 500px; margin: 20px auto;">
+    <div class="contract-box">
         CA: 0xBD2911a2899407b85BF33F013Df1d0f3b049D473
     </div>
 </section>
@@ -180,7 +177,7 @@
         
         <div id="lockedArea" class="locked-overlay">
             <h3 id="statusText">🔒 Hozzáférés zárolva</h3>
-            <p>Csatlakoztasd a tárcád az ellenőrzéshez.</p>
+            <p id="subStatus">Csatlakoztasd a tárcád az ellenőrzéshez.</p>
         </div>
 
         <div id="unlockedArea" class="unlocked-content">
@@ -203,43 +200,59 @@
 
     const connectButton = document.getElementById('connectButton');
     const statusText = document.getElementById('statusText');
+    const subStatus = document.getElementById('subStatus');
     const lockedArea = document.getElementById('lockedArea');
     const unlockedArea = document.getElementById('unlockedArea');
 
     async function updateUI() {
+        // 1. Ethers ellenőrzése
+        if (typeof ethers === 'undefined') {
+            alert("Hiba: A blokklánc könyvtár nem töltődött be. Ellenőrizd az internetkapcsolatot!");
+            return;
+        }
+
+        // 2. MetaMask ellenőrzése
         if (typeof window.ethereum !== 'undefined') {
             try {
-                const provider = new ethers.providers.Web3Provider(window.ethereum);
-                const accounts = await provider.send("eth_requestAccounts", []);
+                subStatus.innerText = "Kapcsolódás a MetaMask-hoz...";
+                
+                // Account kérése
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
                 const account = accounts[0];
                 
+                // Gomb szöveg frissítése
                 connectButton.innerText = account.slice(0,6) + "..." + account.slice(-4);
                 
+                // Blokklánc hívás
+                const provider = new ethers.providers.Web3Provider(window.ethereum);
                 const contract = new ethers.Contract(tlxAddress, tlxAbi, provider);
+                
                 const balance = await contract.balanceOf(account);
                 const decimals = await contract.decimals();
-                
                 const formattedBalance = parseFloat(ethers.utils.formatUnits(balance, decimals));
                 
-                console.log("Egyenleg:", formattedBalance);
+                console.log("Felhasználó egyenlege:", formattedBalance);
 
                 if (formattedBalance >= 10000) {
                     lockedArea.style.display = 'none';
                     unlockedArea.style.display = 'block';
                 } else {
-                    statusText.innerText = "❌ Alacsony egyenleg: " + formattedBalance.toLocaleString() + " TLX";
-                    alert("A 7. epizódhoz legalább 10.000 TLX szükséges. Jelenlegi egyenleged: " + formattedBalance);
+                    statusText.innerText = "❌ Nincs elég tokened";
+                    subStatus.innerText = "Egyenleged: " + formattedBalance.toLocaleString() + " TLX (Szükséges: 10,000)";
+                    alert("A tartalom zárolva marad, amíg nincs legalább 10,000 TLX a tárcádban.");
                 }
 
             } catch (error) {
-                console.error(error);
-                statusText.innerText = "⚠️ Hiba a csatlakozás során";
+                console.error("Hiba történt:", error);
+                statusText.innerText = "⚠️ Hiba";
+                subStatus.innerText = "A tranzakciót elutasították vagy hiba történt.";
             }
         } else {
-            alert("MetaMask nem található. Kérlek telepítsd a bővítményt!");
+            alert("MetaMask nem található! Kérlek telepítsd a bővítményt vagy használd a MetaMask beépített böngészőjét.");
         }
     }
 
+    // Eseménykezelő hozzárendelése
     connectButton.addEventListener('click', updateUI);
 </script>
 
