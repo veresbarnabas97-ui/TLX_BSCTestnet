@@ -98,9 +98,7 @@
             transition: 0.3s;
         }
 
-        .card:hover {
-            border-color: var(--cyan);
-        }
+        .card:hover { border-color: var(--cyan); }
 
         .stats-label { color: var(--gold); font-size: 0.9rem; margin-top: 10px; display: block; }
         .stats-value { font-size: 1.5rem; font-weight: bold; display: block; margin-bottom: 15px; }
@@ -147,6 +145,7 @@
             background: #000;
             color: white;
             text-align: center;
+            font-size: 1rem;
         }
     </style>
 </head>
@@ -160,25 +159,23 @@
 <section class="hero">
     <h1>7. Epizód: A Fény Gazdasága</h1>
     <p>Üdvözlünk a TetraLux BSC Testnet ökoszisztémájában. Használd a tokened a Kódex feloldásához!</p>
-    <div class="contract-box">
-        CA: 0xBD2911a2899407b85BF33F013Df1d0f3b049D473
-    </div>
+    <div class="contract-box">CA: 0xBD2911a2899407b85BF33F013Df1d0f3b049D473</div>
 </section>
 
 <div class="container">
     <div class="grid">
         <div class="card">
             <h3>Presale Portál</h3>
-            <span class="stats-label">Elérhető készlet:</span>
-            <span class="stats-value">40,000,000 TLX</span>
-            <input type="number" id="buyAmount" placeholder="tBNB mennyiség" step="0.01">
+            <span class="stats-label">Wallet2 (40M TLX):</span>
+            <span class="stats-value" id="presaleBalance">... TLX</span>
+            <input type="number" id="buyAmount" placeholder="tBNB mennyiség (pl. 0.01)" step="0.01">
             <button class="btn" id="buyBtn" style="background: var(--cyan); color: #000; width: 100%;">Vásárlás tBNB-vel</button>
         </div>
 
         <div class="card">
             <h3>Staking Pool</h3>
-            <span class="stats-label">Jutalom keret:</span>
-            <span class="stats-value">20,000,000 TLX</span>
+            <span class="stats-label">Wallet4 (20M TLX):</span>
+            <span class="stats-value" id="stakingBalance">... TLX</span>
             <input type="number" id="stakeAmount" placeholder="TLX mennyiség">
             <button class="btn" id="stakeBtn" style="background: var(--magenta); color: #fff; width: 100%;">Token Lekötése</button>
         </div>
@@ -186,18 +183,15 @@
 
     <div id="comic-section">
         <h2 style="color: var(--gold);">TetraLux Comics - 7. Epizód</h2>
-        <p>A tartalom megnyitásához 10,000 TLX token tartása szükséges.</p>
-        
         <div id="lockedArea" class="locked-overlay">
             <h3 id="statusText">🔒 Hozzáférés zárolva</h3>
-            <p id="subStatus">Csatlakoztasd a tárcád az ellenőrzéshez.</p>
+            <p id="subStatus">Vásárolj legalább 0.01 tBNB értékben TLX-et a feloldáshoz!</p>
         </div>
 
         <div id="unlockedArea" class="unlocked-content">
             <h3 style="color: var(--cyan);">✨ Hozzáférés Engedélyezve!</h3>
             <div style="background: #222; padding: 50px; border-radius: 15px; border: 2px solid var(--cyan);">
-                <p><b>Gratulálunk, Fényőr!</b> Sikeresen azonosítottad magad.</p>
-                <img src="1441.jpg" alt="TetraLux Kódex" style="max-width: 100%; border-radius: 15px; margin: 20px 0; border: 1px solid var(--gold);">
+                <img src="1441.jpg" alt="TetraLux Kódex" style="max-width: 100%; border-radius: 15px; margin-bottom: 20px; border: 1px solid var(--gold);">
                 <p><i>TetraLux éppen a Revolut kártyájával fizet a Ramen étteremben...</i></p>
                 <button class="btn" style="border: 1px solid var(--gold); color: var(--gold); background: transparent;">Képregény letöltése (PDF)</button>
             </div>
@@ -206,10 +200,9 @@
 </div>
 
 <script>
-    // Konfiguráció
     const tlxAddress = "0xBD2911a2899407b85BF33F013Df1d0f3b049D473";
-    const presaleWallet = "0xbb64336e367d42977dc8bcf0364f80801bc5eb5b";
-    const stakingWallet = "0x2c8bbc67fc5ff886223c1bb576e720853e6da372";
+    const wallet2_Presale = "0x2c8bbc67fc5ff886223c1bb576e720853e6da372";
+    const wallet4_Staking = "0xbb64336e367d42977dc8bcf0364f80801bc5eb5b";
 
     const tlxAbi = [
         {"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
@@ -223,9 +216,7 @@
         if (typeof window.ethereum !== 'undefined') {
             provider = new ethers.providers.Web3Provider(window.ethereum);
             const accounts = await provider.listAccounts();
-            if (accounts.length > 0) {
-                setupAccount(accounts[0]);
-            }
+            if (accounts.length > 0) setupAccount(accounts[0]);
         }
     }
 
@@ -233,70 +224,72 @@
         account = acc;
         signer = provider.getSigner();
         document.getElementById('connectButton').innerText = account.slice(0,6) + "..." + account.slice(-4);
-        checkAccess();
+        refreshBalances();
     }
 
-    async function checkAccess() {
+    async function refreshBalances() {
         const contract = new ethers.Contract(tlxAddress, tlxAbi, provider);
-        const balance = await contract.balanceOf(account);
         const decimals = await contract.decimals();
-        const formattedBalance = parseFloat(ethers.utils.formatUnits(balance, decimals));
 
-        if (formattedBalance >= 10000) {
+        // Tárcák egyenlegei
+        const pBal = await contract.balanceOf(wallet2_Presale);
+        const sBal = await contract.balanceOf(wallet4_Staking);
+        const uBal = await contract.balanceOf(account);
+
+        document.getElementById('presaleBalance').innerText = parseFloat(ethers.utils.formatUnits(pBal, decimals)).toLocaleString() + " TLX";
+        document.getElementById('stakingBalance').innerText = parseFloat(ethers.utils.formatUnits(sBal, decimals)).toLocaleString() + " TLX";
+
+        const userBalance = parseFloat(ethers.utils.formatUnits(uBal, decimals));
+        if (userBalance >= 10000) {
             document.getElementById('lockedArea').style.display = 'none';
             document.getElementById('unlockedArea').style.display = 'block';
         } else {
-            document.getElementById('statusText').innerText = "❌ Nincs elég tokened (" + formattedBalance.toLocaleString() + " TLX)";
+            document.getElementById('statusText').innerText = "🔒 Egyenleged: " + userBalance.toLocaleString() + " TLX";
         }
     }
 
-    // Connect Wallet
     document.getElementById('connectButton').onclick = async () => {
         const accounts = await provider.send("eth_requestAccounts", []);
         setupAccount(accounts[0]);
     };
 
-    // BUY (Presale) Funkció
     document.getElementById('buyBtn').onclick = async () => {
         if (!signer) return alert("Csatlakoztasd a tárcád!");
         const amount = document.getElementById('buyAmount').value;
-        if (!amount || amount <= 0) return alert("Adj meg egy érvényes összeget!");
+        if (!amount || amount <= 0) return alert("Adj meg tBNB összeget!");
 
         try {
             const tx = await signer.sendTransaction({
-                to: presaleWallet,
+                to: wallet2_Presale,
                 value: ethers.utils.parseEther(amount)
             });
-            alert("Tranzakció elküldve! Hash: " + tx.hash);
+            alert("Vásárlás folyamatban... Hash: " + tx.hash);
             await tx.wait();
-            alert("Vásárlás sikeres! A tokenek hamarosan érkeznek.");
+            alert("Sikeres tBNB küldés! (A tokenek kiosztása manuális vagy Contract alapú)");
+            refreshBalances();
         } catch (err) {
-            console.error(err);
-            alert("Hiba történt a vásárlás során.");
+            alert("Hiba: " + err.message);
         }
     };
 
-    // STAKE Funkció
     document.getElementById('stakeBtn').onclick = async () => {
         if (!signer) return alert("Csatlakoztasd a tárcád!");
         const amount = document.getElementById('stakeAmount').value;
-        if (!amount || amount <= 0) return alert("Mennyit szeretnél lekötni?");
+        if (!amount || amount <= 0) return alert("Mennyit kötnél le?");
 
         try {
             const contract = new ethers.Contract(tlxAddress, tlxAbi, signer);
             const decimals = await contract.decimals();
-            const tx = await contract.transfer(stakingWallet, ethers.utils.parseUnits(amount, decimals));
-            alert("Staking tranzakció elküldve!");
+            const tx = await contract.transfer(wallet4_Staking, ethers.utils.parseUnits(amount, decimals));
             await tx.wait();
-            alert("Sikeres lekötés!");
+            alert("Sikeres lekötés a Staking tárcába!");
+            refreshBalances();
         } catch (err) {
-            console.error(err);
-            alert("Hiba a staking során.");
+            alert("Hiba: Nincs elég TLX-ed vagy elutasítottad a tranzakciót.");
         }
     };
 
     window.onload = init;
 </script>
-
 </body>
 </html>
