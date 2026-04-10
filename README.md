@@ -1,4 +1,3 @@
-# TLX_BSCTestnet
 # 🌟 TetraLux (TLX) & Telegram Bot
 
 A TetraLux egy innovatív blokklánc-alapú projekt, amely a BSC (Binance Smart Chain) hálózatán működik. Ez a repository tartalmazza a projekt DApp felületét és a tartalomvédett Telegram bot forráskódját.
@@ -29,3 +28,8 @@ A bot feladata a prémium tartalmak (PDF kiskönyvek, oktató anyagok) védelme.
 | **Telegraf / python-telegram-bot** | Telegram API kezelés |
 | **Ethers.js / HTML / CSS** | DApp (Frontend) fejlesztés |
 | **BSC Testnet** | Hálózati infrastruktúra |
+🔗 Fontos linkek
+​Weboldal (DApp): [https://veresbarnabas97-ui.github.io/TLX_BSCTestnet/]
+​Token Cím (BSC Testnet): 0xBD2911a2899407b85BF33F013Df1d0f3b049D473
+​Hálózati RPC: https://data-seed-prebsc-1-s1.binance.org:8545/
+​© 2026 TetraLux Project - Minden jog fenntartva.
