@@ -15,7 +15,8 @@ A bot feladata a prémium tartalmak (PDF kiskönyvek, oktató anyagok) védelme.
 
 ### Főbb funkciók:
 - **Valós idejű egyenlegellenőrzés:** BSC Testnet hálózaton keresztül.
-- **Tartalomfeloldás:** - `1,000 TLX` -> TetraLux Kiskönyv (PDF)
+- **Tartalomfeloldás:**
+  - `1,000 TLX` -> TetraLux Kiskönyv (PDF)
   - `10,000 TLX` -> TetraLux 7. Epizód (PPTX)
 - **Biztonság:** A fájlok nem a GitHubon, hanem védett szerverkörnyezetben (PythonAnywhere) tárolódnak.
 
