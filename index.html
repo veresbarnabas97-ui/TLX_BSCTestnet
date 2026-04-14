@@ -185,8 +185,8 @@
 <div class="container">
     <div class="grid">
         <div class="card">
-            <h3>Presale Portál</h3>
-            <span class="stats-label">Presale készlet (indulás: 20M TLX):</span>
+            <h3>Presale Portál (Automata)</h3>
+            <span class="stats-label">Szerződésben lévő TLX készlet:</span>
             <span class="stats-value" id="presaleBalance">... TLX</span>
             <input type="number" id="buyAmount" placeholder="tBNB mennyiség" step="0.01">
             <button class="btn" id="buyBtn" style="background: var(--cyan); color: #000; width: 100%;">Vásárlás tBNB-vel</button>
@@ -227,9 +227,9 @@
 
 <script>
     const tlxAddress = "0xBD2911a2899407b85BF33F013Df1d0f3b049D473";
-    const wallet1_Creator = "0x8eb3f098093d77b840ca72f9e53c765c2f023a35";
+    // ÚJ: Itt az okosszerződésed címe a vásárláshoz
+    const presaleContractAddress = "0xd9145CCE52D386f254917e481eB44e9943F39138";
     const wallet2_Staking = "0x2c8bbc67fc5ff886223c1bb576e720853e6da372";
-    const wallet4_Presale = "0xbb64336e367d42977dc8bcf0364f80801bc5eb5b";
 
     const tlxAbi = [
         {"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
@@ -244,6 +244,8 @@
             provider = new ethers.providers.Web3Provider(window.ethereum);
             const accounts = await provider.listAccounts();
             if (accounts.length > 0) setupAccount(accounts[0]);
+        } else {
+            alert("Kérlek telepíts MetaMask-ot!");
         }
     }
 
@@ -255,10 +257,12 @@
     }
 
     async function refreshBalances() {
+        if (!account) return;
         const contract = new ethers.Contract(tlxAddress, tlxAbi, provider);
         const decimals = await contract.decimals();
 
-        const pBal = await contract.balanceOf(wallet4_Presale);
+        // Lekérdezzük a készletet az okosszerződésből és a staking tárcából
+        const pBal = await contract.balanceOf(presaleContractAddress);
         const sBal = await contract.balanceOf(wallet2_Staking);
         const uBal = await contract.balanceOf(account);
 
@@ -267,7 +271,6 @@
 
         const userBalance = parseFloat(ethers.utils.formatUnits(uBal, decimals));
 
-        // Bot jogosultság vizuális visszajelzés
         const t1 = document.getElementById('tier1Status');
         const t2 = document.getElementById('tier2Status');
 
@@ -289,20 +292,35 @@
     }
 
     document.getElementById('connectButton').onclick = async () => {
-        const accounts = await provider.send("eth_requestAccounts", []);
-        setupAccount(accounts[0]);
+        try {
+            const accounts = await provider.send("eth_requestAccounts", []);
+            setupAccount(accounts[0]);
+        } catch (err) { console.error(err); }
     };
 
+    // --- AUTOMATIZÁLT VÁSÁRLÁS MODUL ---
     document.getElementById('buyBtn').onclick = async () => {
         if (!signer) return alert("Csatlakoztasd a tárcád!");
         const amount = document.getElementById('buyAmount').value;
         if (!amount || amount <= 0) return alert("Adj meg tBNB összeget!");
+
         try {
-            const tx = await signer.sendTransaction({ to: wallet1_Creator, value: ethers.utils.parseEther(amount) });
+            // tBNB küldése az OKOSSZERZŐDÉSNEK
+            const tx = await signer.sendTransaction({ 
+                to: presaleContractAddress, 
+                value: ethers.utils.parseEther(amount),
+                gasLimit: 120000 
+            });
+            
+            alert("Tranzakció elküldve! Várj a visszaigazolásra...");
             await tx.wait();
-            alert("Sikeres küldés!");
+            
+            alert("Sikeres vásárlás! A TLX tokenek megérkeztek a tárcádba.");
             refreshBalances();
-        } catch (err) { alert("Hiba: " + err.message); }
+        } catch (err) { 
+            console.error(err);
+            alert("Hiba: " + err.message); 
+        }
     };
 
     document.getElementById('stakeBtn').onclick = async () => {
@@ -316,7 +334,7 @@
             await tx.wait();
             alert("Sikeres lekötés!");
             refreshBalances();
-        } catch (err) { alert("Hiba: Nincs elég TLX vagy elutasítottad."); }
+        } catch (err) { alert("Hiba: Nincs elég TLX vagy elutasítottad a tranzakciót."); }
     };
 
     window.onload = init;
