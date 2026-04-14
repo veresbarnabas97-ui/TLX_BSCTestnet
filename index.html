@@ -179,7 +179,7 @@
 <section class="hero">
     <h1>7. Epizód: A Fény Gazdasága</h1>
     <p>Üdvözlünk a TetraLux ökoszisztémában. Csatlakoztasd a tárcád és irány a Telegram Bot!</p>
-    <div class="contract-box">CA: 0xBD2911a2899407b85BF33F013Df1d0f3b049D473</div>
+    <div class="contract-box">Token CA: 0xBD2911a2899407b85BF33F013Df1d0f3b049D473</div>
 </section>
 
 <div class="container">
@@ -227,7 +227,8 @@
 
 <script>
     const tlxAddress = "0xBD2911a2899407b85BF33F013Df1d0f3b049D473";
-    const presaleContractAddress = "0xd9145CCE52D386f254917e481eB44e9943F39138";
+    // ÚJ PRESALE SZERZŐDÉS CÍME:
+    const presaleContractAddress = "0x22b9bF0aEEaDD60738354E033b020c0571D61cFD"; 
     const wallet2_Staking = "0x2c8bbc67fc5ff886223c1bb576e720853e6da372";
 
     const tlxAbi = [
@@ -238,17 +239,13 @@
 
     let provider, signer, account;
 
-    // Inicializálás
     async function init() {
         if (typeof window.ethereum !== 'undefined') {
             provider = new ethers.providers.Web3Provider(window.ethereum);
-            // Automatikus újracsatlakozás, ha már engedélyezve van
             const accounts = await provider.listAccounts();
             if (accounts.length > 0) {
                 setupAccount(accounts[0]);
             }
-        } else {
-            console.log("MetaMask nem található.");
         }
     }
 
@@ -257,22 +254,18 @@
         signer = provider.getSigner();
         const btn = document.getElementById('connectButton');
         btn.innerText = account.slice(0,6) + "..." + account.slice(-4);
-        btn.classList.add('unlocked'); // Opcionális stílusváltás
         refreshBalances();
     }
 
-    // Tárca Csatlakoztatása Gomb - JAVÍTVA
     document.getElementById('connectButton').onclick = async () => {
         if (typeof window.ethereum === 'undefined') {
-            return alert("Kérlek, telepíts egy kripto tárcát (pl. MetaMask)!");
+            return alert("Kérlek, telepíts MetaMask-ot!");
         }
         try {
-            // Ez kényszeríti ki a MetaMask ablakot
             const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
             setupAccount(accounts[0]);
         } catch (err) {
-            console.error("Csatlakozási hiba:", err);
-            alert("Nem sikerült csatlakozni a tárcához.");
+            alert("Nem sikerült csatlakozni.");
         }
     };
 
@@ -309,36 +302,35 @@
                 t2.className = "status-badge locked";
             }
         } catch (e) {
-            console.error("Egyenleg hiba:", e);
+            console.error("Hiba az egyenlegek frissítésekor:", e);
         }
     }
 
-    // Vásárlás gomb
     document.getElementById('buyBtn').onclick = async () => {
-        if (!signer) return alert("Előbb csatlakoztasd a tárcád!");
+        if (!signer) return alert("Csatlakoztasd a tárcád!");
         const amount = document.getElementById('buyAmount').value;
         if (!amount || amount <= 0) return alert("Adj meg tBNB összeget!");
 
         try {
+            // A vásárlás a Presale szerződésnek küldött BNB-vel történik
             const tx = await signer.sendTransaction({ 
                 to: presaleContractAddress, 
                 value: ethers.utils.parseEther(amount),
-                gasLimit: 120000 
+                gasLimit: 150000 // Megemeltük kicsit a biztonság kedvéért
             });
-            alert("Tranzakció elküldve! Várj a visszaigazolásra...");
+            alert("Vásárlás folyamatban...");
             await tx.wait();
-            alert("Sikeres vásárlás!");
+            alert("Sikeres TLX vásárlás!");
             refreshBalances();
         } catch (err) { 
             alert("Hiba: " + err.message); 
         }
     };
 
-    // Staking gomb
     document.getElementById('stakeBtn').onclick = async () => {
-        if (!signer) return alert("Előbb csatlakoztasd a tárcád!");
+        if (!signer) return alert("Csatlakoztasd a tárcád!");
         const amount = document.getElementById('stakeAmount').value;
-        if (!amount || amount <= 0) return alert("Mennyit kötnél le?");
+        if (!amount || amount <= 0) return alert("Adj meg összeget!");
         try {
             const contract = new ethers.Contract(tlxAddress, tlxAbi, signer);
             const decimals = await contract.decimals();
@@ -346,10 +338,9 @@
             await tx.wait();
             alert("Sikeres lekötés!");
             refreshBalances();
-        } catch (err) { alert("Hiba a lekötés során."); }
+        } catch (err) { alert("Hiba a lekötésnél."); }
     };
 
-    // Betöltéskor indítunk
     window.addEventListener('load', init);
 </script>
 </body>
